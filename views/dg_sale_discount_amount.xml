@@ -1,0 +1,141 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <data>
+        <record id="view_order_form" model="ir.ui.view">
+            <field name="name">view_order_form</field>
+            <field name="inherit_id" ref="sale.view_order_form"/>
+            <field name="model">sale.order</field>
+            <field name="priority">20</field>
+            <field name="arch" type="xml">
+                <xpath expr="//field[@name='order_line']/tree/field[@name='discount']" position="after">
+                    <field name="discount_amount" groups="sale.group_discount_per_so_line"/>
+                </xpath>
+
+                <xpath expr="//field[@name='order_line']/form/group/group/div[@name='discount']" position="after">
+                    <field name="discount_amount" groups="sale.group_discount_per_so_line"/>
+                </xpath>
+            </field>
+        </record>
+
+        <template id="report_saleorder_document" inherit_id="sale.report_saleorder_document">
+            <!-- from addons/sale/report/sale_report_templates.xml -->
+
+            <xpath expr="//t[@t-set='display_discount']" position="after">
+                <t t-set="display_discount_amount" t-value="any([l.discount_amount for l in doc.order_line])"/>
+            </xpath>
+
+            <xpath expr="//thead//th[@t-if='display_discount']" position="after">
+                <th t-if="display_discount_amount" class="text-right" groups="sale.group_discount_per_so_line">
+                    <span>Disc. Amount</span>
+                    <!-- TODO: remove in master -->
+                    <t t-set="colspan" t-value="colspan+1"/>
+                </th>
+            </xpath>
+
+            <xpath expr="//tbody[hasclass('sale_tbody')]//td[@t-if='display_discount']" position="after">
+                <td t-if="display_discount_amount" class="text-right" groups="sale.group_discount_per_so_line">
+                    <span t-field="line.discount_amount"/>
+                </td>
+            </xpath>
+        </template>
+
+        <template id="sale_order_portal_content" inherit_id="sale.sale_order_portal_content">
+            <!-- from addons/sale/views/sale_portal_templates.xml -->
+
+            <xpath expr="//div[@t-if='line.discount &gt;= 0']" position="replace">
+                <div t-if="line.discount &gt;= 0 or line.discount_amount"
+                     t-field="line.price_unit"
+                     t-options='{"widget": "monetary", "display_currency": sale_order.pricelist_id.currency_id}'
+                     t-att-style="(line.discount or line.discount_amount) and 'text-decoration: line-through' or None"
+                     t-att-class="((line.discount or line.discount_amount) and 'text-danger' or '') + ' text-right'"/>
+            </xpath>
+
+            <xpath expr="//div[@t-if='line.discount']" position="replace">
+                <div t-if="line.discount or line.discount_amount">
+                    <t t-esc="(1-line.discount / 100.0) * line.price_unit - line.discount_amount"
+                       t-options='{"widget": "monetary", "display_currency": sale_order.pricelist_id.currency_id}'/>
+                </div>
+            </xpath>
+
+            <xpath expr="//t[@t-set='display_discount']" position="after">
+                <t t-set="display_discount_amount"
+                   t-value="True in [line.discount_amount > 0 for line in sale_order.order_line]"/>
+            </xpath>
+
+            <xpath expr="//table[@id='sales_order_table']//th[@t-if='display_discount']" position="after">
+                <th t-if="display_discount_amount"
+                    t-attf-class="text-right {{ 'd-none d-sm-table-cell' if report_type == 'html' else '' }}">
+                    <span>Discount Amount</span>
+                    <!-- TODO: remove in master -->
+                    <t t-set="colspan" t-value="colspan+1"/>
+                </th>
+            </xpath>
+
+            <xpath expr="//tbody[hasclass('sale_tbody')]//td[@t-if='display_discount']" position="after">
+                <td t-if="display_discount_amount"
+                    t-attf-class="text-right {{ 'd-none d-sm-table-cell' if report_type == 'html' else '' }}">
+                    <strong t-if="line.discount_amount &gt; 0" class="text-info">
+                        <!--
+                        <t t-esc="((line.discount_amount % 1) and '%s' or '%d') % line.discount_amount"/> discount
+                        -->
+                        <span t-field="line.discount_amount"/>
+                        discount
+                    </strong>
+                </td>
+            </xpath>
+        </template>
+
+        <template id="report_invoice_document" inherit_id="account.report_invoice_document">
+            <!-- from addons/account/views/report_invoice.xml -->
+
+            <xpath expr="//t[@t-set='display_discount']" position="after">
+                <t t-set="display_discount_amount" t-value="any([l.discount_amount for l in o.invoice_line_ids])"/>
+            </xpath>
+
+            <xpath expr="//thead//th[@t-if='display_discount']" position="after">
+                <th t-if="display_discount_amount"
+                    t-attf-class="text-right {{ 'd-none d-md-table-cell' if report_type == 'html' else '' }}"
+                    groups="sale.group_discount_per_so_line">
+                    <span>Disc. Amount</span>
+                    <!-- TODO: remove in master -->
+                    <t t-set="colspan" t-value="colspan+1"/>
+                </th>
+            </xpath>
+
+            <xpath expr="//tbody[hasclass('invoice_tbody')]//td[@t-if='display_discount']" position="after">
+                <td t-if="display_discount_amount"
+                    t-attf-class="text-right {{ 'd-none d-md-table-cell' if report_type == 'html' else '' }}"
+                    groups="sale.group_discount_per_so_line">
+                    <span t-field="line.discount_amount"/>
+                </td>
+            </xpath>
+        </template>
+
+        <record id="invoice_form" model="ir.ui.view">
+            <field name="name">invoice_form</field>
+            <field name="inherit_id" ref="account.invoice_form"/>
+            <field name="model">account.invoice</field>
+            <field name="priority">20</field>
+            <field name="arch" type="xml">
+                <xpath expr="//field[@name='invoice_line_ids']/tree/field[@name='discount']" position="after">
+                    <!--
+                    <field name="discount_amount" groups="base.group_no_one"/>
+                    -->
+                    <field name="discount_amount" groups="sale.group_discount_per_so_line"/>
+                </xpath>
+            </field>
+        </record>
+
+        <record id="view_invoice_line_form" model="ir.ui.view">
+            <field name="name">account.invoice.line.form</field>
+            <field name="inherit_id" ref="account.view_invoice_line_form"/>
+            <field name="model">account.invoice.line</field>
+            <field name="priority">20</field>
+            <field name="arch" type="xml">
+                <xpath expr="//form/group/group/field[@name='discount']" position="after">
+                    <field name="discount_amount" groups="sale.group_discount_per_so_line"/>
+                </xpath>
+            </field>
+        </record>
+    </data>
+</odoo>
